@@ -1,0 +1,19 @@
+# Skompilowane pliki - trafiaja do GitHub Releases, nie do repozytorium
+*.exe
+*.exe.*
+*.pdb
+
+# Pliki, ktore aplikacja tworzy obok siebie w trakcie dzialania
+newsyve.cfg
+*.cache
+*.log
+herby/
+podglad.png
+
+# Edytory i system
+.vs/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
