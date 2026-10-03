@@ -78,11 +78,65 @@ namespace NewsyVE
                     object la = Json.At(o, "lat"); if (la == null) la = Json.At(o, "latitude");
                     object lo = Json.At(o, "lon"); if (lo == null) lo = Json.At(o, "longitude");
                     h.Lat = Json.Num(la); h.Lon = Json.Num(lo);
-                    if (h.Name.Length > 0 && !double.IsNaN(h.Lat) && h.Lat != 0) return h;
+                    if (h.Name.Length > 0 && !double.IsNaN(h.Lat) && h.Lat != 0)
+                    {
+                        Polish(h);
+                        return h;
+                    }
                 }
                 catch { }
             }
             return null;
+        }
+
+        // Uslugi IP podaja nazwy po angielsku ("Warsaw", "Mazovia"). Region musi
+        // jednak brzmiec "wojewodztwo mazowieckie", bo po nim dobierane sa
+        // ostrzezenia IMGW. Szukanie po nazwie nie pomaga ("Cracow" trafia do
+        // Australii), wiec pytamy o wspolrzedne. Gdy sie nie uda - zostaje
+        // nazwa z IP.
+        static void Polish(GeoHit h)
+        {
+            string lat = h.Lat.ToString("0.#####", CultureInfo.InvariantCulture);
+            string lon = h.Lon.ToString("0.#####", CultureInfo.InvariantCulture);
+            try
+            {
+                // OpenStreetMap wymaga wlasnego User-Agenta - stad Api2
+                object o = Json.Parse(Api2.Get(
+                    "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=pl" +
+                    "&lat=" + lat + "&lon=" + lon));
+                object a = Json.At(o, "address");
+                string name = Json.Str(Json.At(a, "city"));
+                if (name.Length == 0) name = Json.Str(Json.At(a, "town"));
+                if (name.Length == 0) name = Json.Str(Json.At(a, "village"));
+                if (name.Length == 0) name = Json.Str(Json.At(o, "name"));
+                string region = Json.Str(Json.At(a, "state"));
+                if (name.Length > 0)
+                {
+                    h.Name = name;
+                    if (region.Length > 0) h.Region = region;
+                    string country = Json.Str(Json.At(a, "country"));
+                    if (country.Length > 0) h.Country = country;
+                    return;
+                }
+            }
+            catch { }
+            try
+            {
+                object o = Json.Parse(Api.Fetch(
+                    "https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=pl" +
+                    "&latitude=" + lat + "&longitude=" + lon));
+                string name = Json.Str(Json.At(o, "city"));
+                if (name.Length == 0) name = Json.Str(Json.At(o, "locality"));
+                if (name.Length > 0)
+                {
+                    h.Name = name;
+                    string region = Json.Str(Json.At(o, "principalSubdivision"));
+                    if (region.Length > 0) h.Region = region;
+                    string country = Json.Str(Json.At(o, "countryName"));
+                    if (country.Length > 0) h.Country = country;
+                }
+            }
+            catch { }
         }
 
         // ---------------- siatka ICM UM 4 km ----------------

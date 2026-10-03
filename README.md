@@ -161,6 +161,11 @@ ma punkt styku z siecią, a nie gdzie siedzi użytkownik — trzy różne usług
 potrafią dla tego samego łącza wskazać trzy różne miasta oddalone o setki
 kilometrów. Dlatego wynik zawsze trzeba potwierdzić.
 
+Usługi IP podają nazwy po angielsku („Warsaw”, „Mazovia”), a ostrzeżenia IMGW
+dobierane są po polskiej nazwie województwa. Dlatego współrzędne z IP są jeszcze
+raz geokodowane odwrotnie (OpenStreetMap) — szukanie po nazwie nie wystarcza,
+bo „Cracow” trafia do Australii, a „Lodz” do Konga.
+
 ### Co aplikacja dolicza sama dla każdej miejscowości
 
 | | skąd |
@@ -360,6 +365,7 @@ tylko przy otwartym panelu.
 | puchary, reprezentacja | API UEFA | 30 min, w trakcie meczu 2 min |
 | wyszukiwanie miejscowości | Open-Meteo Geocoding | na żądanie |
 | geolokalizacja po IP | ip-api.com, zapasowo ipwho.is | na żądanie |
+| polska nazwa i województwo dla wyniku z IP | Nominatim (OpenStreetMap), zapasowo BigDataCloud | na żądanie |
 | nowe wersje NewsyVE | GitHub Releases | raz na dobę (można wyłączyć) |
 
 Wszystkie dane, nagłówki, zdjęcia i godła należą do ich właścicieli. NewsyVE
