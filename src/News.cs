@@ -131,6 +131,7 @@ namespace NewsyVE
         public static DateTime AiStamp = DateTime.MinValue;
         public static bool Ok, SportOk, PolOk, AiOk;
         public static string LocalTitle = "Newsy lokalne";   // naglowek karty
+        public static string LocalPage = "https://news.google.com/?hl=pl&gl=PL&ceid=PL:pl"; // klik w karte poza wpisami
         static string itemsFor = "";                         // czyja jest biezaca lista
 
         static NewsKind Classify(string title)
@@ -615,6 +616,7 @@ namespace NewsyVE
             {
                 use = Feeds;
                 LocalTitle = "Kraków — utrudnienia i newsy";
+                LocalPage = "https://www.krakow.pl/aktualnosci";
             }
             else if (lp != null && lp.Name.Length > 0)
             {
@@ -622,11 +624,14 @@ namespace NewsyVE
                     "https://news.google.com/rss/search?q=" +
                     Uri.EscapeDataString(lp.Name) + "&hl=pl&gl=PL&ceid=PL:pl", "") };
                 LocalTitle = lp.Name + " — newsy";
+                LocalPage = "https://news.google.com/search?q=" +
+                    Uri.EscapeDataString(lp.Name) + "&hl=pl&gl=PL&ceid=PL:pl";
             }
             else
             {
                 use = PolFeeds;
                 LocalTitle = "Polska — najnowsze";
+                LocalPage = "https://news.google.com/?hl=pl&gl=PL&ceid=PL:pl";
             }
 
             foreach (Feed f in use)

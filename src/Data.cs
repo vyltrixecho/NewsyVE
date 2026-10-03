@@ -113,7 +113,7 @@ namespace NewsyVE
             using (WebClient c = new GzClient())
             {
                 c.Encoding = Encoding.UTF8;
-                c.Headers[HttpRequestHeader.UserAgent] = "NewsyVE/2.0";
+                c.Headers[HttpRequestHeader.UserAgent] = Cfg.Agent;
                 c.Headers[HttpRequestHeader.CacheControl] = "no-cache";
                 return c.DownloadString(url);
             }
@@ -124,7 +124,7 @@ namespace NewsyVE
             using (WebClient c = new WebClient())
             {
                 c.Encoding = Encoding.UTF8;
-                c.Headers[HttpRequestHeader.UserAgent] = "NewsyVE/2.0";
+                c.Headers[HttpRequestHeader.UserAgent] = Cfg.Agent;
                 c.Headers[HttpRequestHeader.CacheControl] = "no-cache";
                 return c.DownloadString(url);
             }
@@ -136,7 +136,7 @@ namespace NewsyVE
         {
             using (WebClient c = new WebClient())
             {
-                c.Headers[HttpRequestHeader.UserAgent] = "NewsyVE/2.0";
+                c.Headers[HttpRequestHeader.UserAgent] = Cfg.Agent;
                 c.Headers[HttpRequestHeader.CacheControl] = "no-cache";
                 byte[] data = c.DownloadData(url);
 
@@ -163,7 +163,7 @@ namespace NewsyVE
         {
             using (WebClient c = new WebClient())
             {
-                c.Headers[HttpRequestHeader.UserAgent] = "NewsyVE/2.0";
+                c.Headers[HttpRequestHeader.UserAgent] = Cfg.Agent;
                 return c.DownloadData(url);
             }
         }

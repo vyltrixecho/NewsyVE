@@ -34,6 +34,7 @@ namespace NewsyVE
         readonly TrackBar tbText = new TrackBar();
         readonly Label lblText = new Label();
         readonly CheckBox cbAuto = new CheckBox();
+        readonly CheckBox cbUpd = new CheckBox();
 
         // --- strona 3: dane ---
         readonly NumericUpDown numWx = new NumericUpDown();
@@ -619,8 +620,20 @@ namespace NewsyVE
             h3.ForeColor = T.Tx3; h3.Font = T.F(11);
             h3.Text = "Kursy, współrzędne stacji IMGW, godła klubów i miniatury newsów.";
 
+            cbUpd.SetBounds(0, 312, 508, 24);
+            cbUpd.Text = "Sprawdzaj, czy na GitHubie jest nowa wersja";
+            cbUpd.ForeColor = T.Tx; cbUpd.BackColor = T.Bg;
+            cbUpd.Font = T.F(12.5f);
+            cbUpd.Checked = Cfg.UpdCheck;
+
+            Label h4 = new Label();
+            h4.SetBounds(20, 338, 488, 32);
+            h4.ForeColor = T.Tx3; h4.Font = T.F(11);
+            h4.Text = "Raz na dobę, tylko informacja w menu — nic nie jest pobierane " +
+                      "ani instalowane samo. Obecna wersja: " + Cfg.Version + ".";
+
             pg.Controls.AddRange(new Control[] { numWx, numNews, h1, tbKey, h2,
-                                                 clr, lblCache, h3 });
+                                                 clr, lblCache, h3, cbUpd, h4 });
             return pg;
         }
 
@@ -837,6 +850,7 @@ namespace NewsyVE
             Cfg.WxMin = (int)numWx.Value;
             Cfg.NewsMin = (int)numNews.Value;
             Cfg.AccuKey = tbKey.Text.Trim();
+            Cfg.UpdCheck = cbUpd.Checked;
             Cfg.SportTab = cbSportTab.Checked;
             Cfg.Club1 = ComboValue(cbClub1);
             Cfg.Club2 = ComboValue(cbClub2);

@@ -17,3 +17,6 @@ podglad.png
 *.suo
 Thumbs.db
 desktop.ini
+
+# Pliki wydania (Build-Release.ps1) - trafiaja do GitHub Releases
+dist/

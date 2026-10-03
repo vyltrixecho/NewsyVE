@@ -13,6 +13,16 @@ $readme = Join-Path $root 'README.md'
 $ico = Join-Path $root 'NewsyVE.ico'
 $out = Join-Path $root 'NewsyVE-Setup.exe'
 
+# wersja instalatora = wersja aplikacji (jedno zrodlo: src\AssemblyInfo.cs)
+$info = Get-Content (Join-Path $root 'src\AssemblyInfo.cs') -Raw
+if ($info -notmatch 'AssemblyVersion\("([\d.]+)"\)') { throw 'Brak AssemblyVersion w src\AssemblyInfo.cs' }
+$ver = $Matches[1]
+$verCs = Join-Path ([IO.Path]::GetTempPath()) 'NewsyVE-SetupVersion.cs'
+Set-Content $verCs -Encoding ASCII -Value @(
+    'using System.Reflection;',
+    "[assembly: AssemblyVersion(`"$ver`")]",
+    "[assembly: AssemblyFileVersion(`"$ver`")]")
+
 $args = @(
     '/nologo', '/target:winexe', '/optimize+', '/platform:anycpu',
     "/out:`"$out`"",
@@ -22,11 +32,13 @@ $args = @(
 if (Test-Path $readme) { $args += "/resource:`"$readme`",README.md" }
 if (Test-Path $ico) { $args += "/win32icon:`"$ico`"" }
 $args += "`"$(Join-Path $root 'setup\Setup.cs')`""
+$args += "`"$verCs`""
 
 $log = & $csc $args 2>&1
 $code = $LASTEXITCODE
+Remove-Item $verCs -ErrorAction SilentlyContinue
 $log | Where-Object { $_ -match 'error|warning CS' } | Select-Object -First 20
 if ($code -ne 0) { Write-Host "BLAD KOMPILACJI ($code)" -ForegroundColor Red; exit 1 }
 
 $kb = [Math]::Round((Get-Item $out).Length / 1kb, 1)
-Write-Host "OK: $out ($kb kB)" -ForegroundColor Green
+Write-Host "OK: $out ($kb kB, wersja $ver)" -ForegroundColor Green

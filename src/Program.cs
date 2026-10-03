@@ -74,9 +74,11 @@ namespace NewsyVE
         readonly System.Windows.Forms.Timer depTimer = new System.Windows.Forms.Timer();
         readonly System.Windows.Forms.Timer sportTimer = new System.Windows.Forms.Timer();
         readonly System.Windows.Forms.Timer cupsTimer = new System.Windows.Forms.Timer();
+        readonly System.Windows.Forms.Timer updTimer = new System.Windows.Forms.Timer();
         IntPtr iconHandle = IntPtr.Zero;
+        bool balloonIsUpdate;                // klik w dymek o nowej wersji otwiera Releases
         ToolStripMenuItem[] miPlace;
-        ToolStripMenuItem miLeft, miRight, miOff;
+        ToolStripMenuItem miLeft, miRight, miOff, miUpdate;
         ToolStripMenuItem[] miText;
 
         public AppContext()
@@ -143,6 +145,20 @@ namespace NewsyVE
             };
             cupsTimer.Start();
 
+            // pierwsze pytanie minute po starcie, zeby nie dokladac sie do
+            // pobierania pogody i newsow; potem raz na dobe
+            Updates.Found += delegate
+            {
+                if (bar.IsHandleCreated) bar.BeginInvoke((Action)ShowUpdate);
+            };
+            updTimer.Interval = 60 * 1000;
+            updTimer.Tick += delegate
+            {
+                updTimer.Interval = 24 * 60 * 60 * 1000;
+                Updates.Check(false, null);
+            };
+            updTimer.Start();
+
             bar.Show();
             bar.Reposition();
             HookPlaces();
@@ -167,9 +183,14 @@ namespace NewsyVE
             {
                 if (e.Button == MouseButtons.Left) TogglePanel();
             };
+            tray.BalloonTipClicked += delegate { if (balloonIsUpdate) Open(Updates.Page); };
 
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Renderer = new ToolStripProfessionalRenderer();
+            miUpdate = new ToolStripMenuItem("", null, delegate { Open(Updates.Page); });
+            miUpdate.Font = new Font(menu.Font, FontStyle.Bold);
+            miUpdate.Visible = false;
+            menu.Items.Add(miUpdate);
             menu.Items.Add("Pokaż widget", null, delegate { TogglePanel(); });
             menu.Items.Add("Ustawienia…", null, delegate { OpenSettings(); });
             menu.Items.Add("Odśwież teraz", null, delegate { Store.Refresh(true); Store.RefreshMarkets(true); Store.RefreshNews(); Store.RefreshTransit(); Store.RefreshSport(); });
@@ -202,12 +223,31 @@ namespace NewsyVE
             menu.Items.Add("meteo.pl — meteorogram ICM", null, delegate {
                 Open(Cfg.IcmPage(Cfg.Places[Cfg.BarPlace])); });
             menu.Items.Add("AccuWeather — radar", null, delegate {
-                Open("https://www.accuweather.com/pl/pl/krakow/274455/weather-radar/274455"); });
+                Open("https://www.accuweather.com/pl/pl/national/weather-radar"); });
             menu.Items.Add("iradar.app", null, delegate {
                 Place p = Cfg.Places[Cfg.BarPlace];
                 Open("https://iradar.app/#map=" +
                      p.Lat.ToString("0.0000", CultureInfo.InvariantCulture) + "/" +
                      p.Lon.ToString("0.0000", CultureInfo.InvariantCulture) + "/7.52/c/czcomp/DBZH"); });
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Sprawdź aktualizacje (wersja " + Cfg.Version + ")", null, delegate
+            {
+                Updates.Check(true, delegate (string msg)
+                {
+                    if (!bar.IsHandleCreated) return;
+                    bar.BeginInvoke((Action)delegate
+                    {
+                        // pytanie z menu zawsze dostaje odpowiedz, takze gdy dymek
+                        // o tej wersji byl juz wczesniej
+                        balloonIsUpdate = Updates.Latest.Length > 0;
+                        tray.BalloonTipTitle = "NewsyVE";
+                        tray.BalloonTipText = balloonIsUpdate
+                            ? msg + " Kliknij, żeby otworzyć stronę wydania."
+                            : msg;
+                        tray.ShowBalloonTip(5000);
+                    });
+                });
+            });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Zakończ", null, delegate { Quit(); });
 
@@ -345,10 +385,26 @@ namespace NewsyVE
             PlaceData d = Store.Data.Length > Cfg.BarPlace ? Store.Data[Cfg.BarPlace] : null;
             DateTime? r = Store.FirstRain(d);
             if (!r.HasValue) return;
+            balloonIsUpdate = false;
             tray.BalloonTipTitle = "NewsyVE — nadchodzą opady";
             tray.BalloonTipText = Cfg.Places[Cfg.BarPlace].Name + ": około " +
                                   r.Value.ToString("HH:mm", CultureInfo.InvariantCulture) + ".";
             tray.ShowBalloonTip(8000);
+        }
+
+        // Pozycja w menu wisi, dopoki nowa wersja nie zostanie zainstalowana;
+        // dymek pokazuje sie raz dla kazdej wersji, a nie przy kazdym starcie.
+        void ShowUpdate()
+        {
+            miUpdate.Text = "Nowa wersja " + Updates.Latest + " — pobierz…";
+            miUpdate.Visible = true;
+            if (Cfg.UpdSeen == Updates.Latest) return;
+            Cfg.UpdSeen = Updates.Latest;
+            Cfg.Save();
+            balloonIsUpdate = true;
+            tray.BalloonTipTitle = "NewsyVE " + Updates.Latest + " jest już dostępne";
+            tray.BalloonTipText = "Kliknij, żeby otworzyć stronę wydania na GitHubie.";
+            tray.ShowBalloonTip(10000);
         }
 
         void TogglePanel()

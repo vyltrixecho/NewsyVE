@@ -390,13 +390,17 @@ namespace NewsyVE
                                 : n.Source + " · " + Ago(n.Date);
                     Art.Text(g, Trim(g, when, fs, tw), fs, T.Tx3, tx, cy + ThH - 11);
 
+                    // klik w pozycje otwiera ja sama; hit karty (dodany na koncu) lapie reszte
+                    if (n.Link.Length > 0)
+                        hits.Add(new Hit(new Rectangle(r.X + 6, cy - 4, r.Width - 12, ThH + 8), MakeOpen(n.Link)));
+
                     cy += ThH + 8;
                     if (cy < bottom - 10)
                         using (Pen pen = new Pen(Color.FromArgb(70, T.Line)))
                             g.DrawLine(pen, r.X + 12, cy - 4, r.Right - 12, cy - 4);
                 }
             }
-            hits.Add(new Hit(r, MakeOpen("https://www.krakow.pl/aktualnosci")));
+            hits.Add(new Hit(r, MakeOpen(News.LocalPage)));
         }
 
         // ---------- zakladka Sport ----------

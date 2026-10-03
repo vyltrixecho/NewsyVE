@@ -5,26 +5,57 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
+// Numer wersji dopisuje Build-Setup.ps1 (z src\AssemblyInfo.cs aplikacji),
+// zeby instalator i aplikacja nie rozjechaly sie przy kolejnym wydaniu.
 [assembly: AssemblyTitle("NewsyVE — instalator")]
 [assembly: AssemblyCompany("VyltrixEcho")]
 [assembly: AssemblyProduct("NewsyVE")]
 [assembly: AssemblyCopyright("© 2026 Paweł Juszczyk (VyltrixEcho) · licencja MIT")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
 
 namespace NewsyVESetup
 {
     // Instalator NewsyVE: aplikacja i README siedza w zasobach tego pliku,
     // wiec calosc to jeden plik do uruchomienia.
+    //
+    //   NewsyVE-Setup.exe                 okno kreatora
+    //   NewsyVE-Setup.exe /silent         instalacja bez okien (skrot na pulpicie, start po instalacji)
+    //   NewsyVE-Setup.exe /uninstall      odinstalowanie - tak wola go "Aplikacje i funkcje"
+    //   ... /uninstall /silent            odinstalowanie bez pytania
     static class Program
     {
         [STAThread]
-        static void Main()
+        static int Main(string[] args)
         {
+            bool silent = false, uninstall = false, norun = false;
+            foreach (string a in args)
+            {
+                string s = a.TrimStart('/', '-').ToLowerInvariant();
+                if (s == "silent" || s == "s" || s == "verysilent" || s == "q") silent = true;
+                else if (s == "uninstall") uninstall = true;
+                else if (s == "norun") norun = true;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            if (uninstall) return Core.UninstallFromWindows(silent);
+            if (silent)
+            {
+                try
+                {
+                    Core.Install(true, Core.IsAutostart(), !norun, null);
+                    return 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("NewsyVE: " + ex.Message);
+                    return 1;
+                }
+            }
             Application.Run(new SetupForm());
+            return 0;
         }
     }
 
@@ -80,114 +111,31 @@ namespace NewsyVESetup
         }
     }
 
-    class SetupForm : Form
+    // Instalacja i odinstalowanie - wspolne dla okna, trybu cichego
+    // i wywolania z "Aplikacje i funkcje".
+    static class Core
     {
-        static readonly string Dir = Path.Combine(
+        public static readonly string Dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NewsyVE");
         static readonly string Programs = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             @"Microsoft\Windows\Start Menu\Programs");
         static string Exe { get { return Path.Combine(Dir, "NewsyVE.exe"); } }
-
-        readonly CheckBox cbDesktop = new CheckBox();
-        readonly CheckBox cbAutostart = new CheckBox();
-        readonly CheckBox cbRun = new CheckBox();
-        readonly Label status = new Label();
-        readonly Flat btnInstall = new Flat();
-        readonly Flat btnRemove = new Flat();
-
-        public SetupForm()
+        // kopia instalatora obok aplikacji - na nia wskazuje wpis odinstalowania
+        static string Uninstaller { get { return Path.Combine(Dir, "NewsyVE-Setup.exe"); } }
+        static string DesktopLink
         {
-            Text = "NewsyVE — instalacja";
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(460, 340);
-            BackColor = T.Bg;
-            ForeColor = T.Tx;
-            Font = T.F(13);
-            try { Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location); }
-            catch { }
-
-            Label title = new Label();
-            title.Text = "NewsyVE";
-            title.Font = T.F(24, FontStyle.Bold);
-            title.ForeColor = T.Tx;
-            title.SetBounds(24, 20, 300, 34);
-            title.BackColor = Color.Transparent;
-
-            Label sub = new Label();
-            sub.Text = "Pogoda, kursy, MPK i newsy na pasku zadań.\n" +
-                       "Jedna aplikacja, bez przeglądarki w tle.";
-            sub.Font = T.F(12);
-            sub.ForeColor = T.Tx2;
-            sub.SetBounds(26, 58, 420, 40);
-
-            Label where = new Label();
-            where.Text = "Katalog: " + Dir;
-            where.Font = T.F(11);
-            where.ForeColor = T.Tx3;
-            where.SetBounds(26, 104, 420, 18);
-
-            cbDesktop.Text = "Skrót na pulpicie";
-            cbDesktop.Checked = true;
-            Style(cbDesktop, 140);
-
-            cbAutostart.Text = "Uruchamiaj razem z Windows";
-            cbAutostart.Checked = IsAutostart();
-            Style(cbAutostart, 168);
-
-            cbRun.Text = "Uruchom po instalacji";
-            cbRun.Checked = true;
-            Style(cbRun, 196);
-
-            btnInstall.Text = Installed() ? "Aktualizuj" : "Zainstaluj";
-            btnInstall.Tint = T.Acc;
-            btnInstall.SetBounds(26, 238, 200, 36);
-            btnInstall.Click += delegate { Install(); };
-
-            btnRemove.Text = "Odinstaluj";
-            btnRemove.Tint = T.Line;
-            btnRemove.ForeColor = T.Tx2;
-            btnRemove.SetBounds(238, 238, 130, 36);
-            btnRemove.Enabled = Installed();
-            btnRemove.Click += delegate { Uninstall(); };
-
-            Flat close = new Flat();
-            close.Text = "Zamknij";
-            close.Tint = T.Line;
-            close.ForeColor = T.Tx2;
-            close.SetBounds(378, 238, 56, 36);
-            close.Click += delegate { Close(); };
-
-            status.Font = T.F(11);
-            status.ForeColor = T.Tx3;
-            status.SetBounds(26, 288, 410, 36);
-
-            Controls.AddRange(new Control[] {
-                title, sub, where, cbDesktop, cbAutostart, cbRun,
-                btnInstall, btnRemove, close, status });
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "NewsyVE.lnk");
+            }
         }
-
-        void Style(CheckBox c, int y)
-        {
-            c.SetBounds(26, y, 400, 22);
-            c.ForeColor = T.Tx;
-            c.Font = T.F(13);
-            c.FlatStyle = FlatStyle.Flat;
-            c.Cursor = Cursors.Hand;
-        }
-
-        static bool Installed() { return File.Exists(Exe); }
         static string AutostartLink { get { return Path.Combine(Programs, @"Startup\NewsyVE.lnk"); } }
-        static bool IsAutostart() { return File.Exists(AutostartLink); }
+        const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\NewsyVE";
 
-        void Say(string text, Color c)
-        {
-            status.ForeColor = c;
-            status.Text = text;
-            status.Refresh();
-        }
+        public static bool Installed() { return File.Exists(Exe); }
+        public static bool IsAutostart() { return File.Exists(AutostartLink); }
 
         static void StopRunning()
         {
@@ -224,39 +172,255 @@ namespace NewsyVESetup
             }
         }
 
+        public static void Install(bool desktop, bool autostart, bool run, Action<string> say)
+        {
+            if (say == null) say = delegate { };
+            say("Zatrzymywanie działającej kopii…");
+            StopRunning();
+
+            if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
+
+            say("Rozpakowywanie plików…");
+            Extract("NewsyVE.exe", Exe);
+            try { Extract("README.md", Path.Combine(Dir, "README.md")); } catch { }
+
+            // instalator uruchomiony z katalogu aplikacji (z "Aplikacje i funkcje")
+            // nie moze nadpisac sam siebie - i nie musi
+            string self = Assembly.GetExecutingAssembly().Location;
+            if (!string.Equals(Path.GetFullPath(self), Path.GetFullPath(Uninstaller),
+                    StringComparison.OrdinalIgnoreCase))
+                File.Copy(self, Uninstaller, true);
+
+            say("Tworzenie skrótów…");
+            Shortcut(Path.Combine(Programs, "NewsyVE.lnk"), Exe, "NewsyVE — pogoda, newsy i sport");
+
+            if (desktop) Shortcut(DesktopLink, Exe, "NewsyVE");
+            else if (File.Exists(DesktopLink)) File.Delete(DesktopLink);
+
+            if (autostart) Shortcut(AutostartLink, Exe, "NewsyVE");
+            else if (File.Exists(AutostartLink)) File.Delete(AutostartLink);
+
+            Register();
+
+            if (run)
+            {
+                try { Process.Start(Exe); } catch { }
+            }
+        }
+
+        // Wpis w "Aplikacje i funkcje" (HKCU - bez uprawnien administratora).
+        static void Register()
+        {
+            string ver = FileVersionInfo.GetVersionInfo(Exe).FileVersion ?? "";
+            Version v;
+            if (Version.TryParse(ver, out v)) ver = v.ToString(3);
+            long kb = 0;
+            foreach (string f in Directory.GetFiles(Dir)) kb += new FileInfo(f).Length / 1024;
+
+            using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstallKey))
+            {
+                k.SetValue("DisplayName", "NewsyVE");
+                k.SetValue("DisplayVersion", ver);
+                k.SetValue("Publisher", "VyltrixEcho");
+                k.SetValue("DisplayIcon", Exe + ",0");
+                k.SetValue("InstallLocation", Dir);
+                k.SetValue("UninstallString", "\"" + Uninstaller + "\" /uninstall");
+                k.SetValue("QuietUninstallString", "\"" + Uninstaller + "\" /uninstall /silent");
+                k.SetValue("URLInfoAbout", "https://github.com/vyltrixecho/NewsyVE");
+                k.SetValue("URLUpdateInfo", "https://github.com/vyltrixecho/NewsyVE/releases");
+                k.SetValue("EstimatedSize", (int)kb, RegistryValueKind.DWord);
+                k.SetValue("NoModify", 1, RegistryValueKind.DWord);
+                k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+            }
+        }
+
+        public static void Uninstall()
+        {
+            StopRunning();
+            foreach (string p in new string[] {
+                Path.Combine(Programs, "NewsyVE.lnk"), AutostartLink, DesktopLink })
+            {
+                try { if (File.Exists(p)) File.Delete(p); } catch { }
+            }
+            // stary wpis autostartu z ustawien aplikacji (klucz Run)
+            try
+            {
+                using (RegistryKey run = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                    if (run != null && run.GetValue("NewsyVE") != null) run.DeleteValue("NewsyVE", false);
+            }
+            catch { }
+            try { Registry.CurrentUser.DeleteSubKeyTree(UninstallKey, false); } catch { }
+            if (Directory.Exists(Dir)) Directory.Delete(Dir, true);
+        }
+
+        // "Aplikacje i funkcje" uruchamia kopie instalatora z katalogu aplikacji,
+        // a dzialajacy plik nie moze skasowac sam siebie ani swojego katalogu.
+        // Dlatego najpierw przenosimy sie do katalogu tymczasowego.
+        public static int UninstallFromWindows(bool silent)
+        {
+            string self = Path.GetFullPath(Assembly.GetExecutingAssembly().Location);
+            if (self.StartsWith(Path.GetFullPath(Dir) + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                string tmp = Path.Combine(Path.GetTempPath(), "NewsyVE-uninstall.exe");
+                File.Copy(self, tmp, true);
+                Process.Start(tmp, "/uninstall" + (silent ? " /silent" : ""));
+                return 0;
+            }
+
+            if (!silent && MessageBox.Show("Usunąć NewsyVE razem z ustawieniami?", "NewsyVE",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return 1;
+            try
+            {
+                Uninstall();
+                if (!silent)
+                    MessageBox.Show("NewsyVE zostało odinstalowane.", "NewsyVE",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                if (!silent)
+                    MessageBox.Show("Błąd: " + ex.Message, "NewsyVE",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return 1;
+            }
+            finally { CleanupSelf(self); }
+        }
+
+        // kopia z katalogu tymczasowego sprzata po sobie, gdy juz sie zamknie
+        static void CleanupSelf(string self)
+        {
+            if (!self.StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase)) return;
+            try
+            {
+                ProcessStartInfo si = new ProcessStartInfo("cmd.exe",
+                    "/c ping 127.0.0.1 -n 3 >nul & del /f /q \"" + self + "\"");
+                si.CreateNoWindow = true;
+                si.UseShellExecute = false;
+                Process.Start(si);
+            }
+            catch { }
+        }
+    }
+
+    class SetupForm : Form
+    {
+        readonly CheckBox cbDesktop = new CheckBox();
+        readonly CheckBox cbAutostart = new CheckBox();
+        readonly CheckBox cbRun = new CheckBox();
+        readonly Label status = new Label();
+        readonly Flat btnInstall = new Flat();
+        readonly Flat btnRemove = new Flat();
+
+        public SetupForm()
+        {
+            Text = "NewsyVE — instalacja";
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(460, 340);
+            BackColor = T.Bg;
+            ForeColor = T.Tx;
+            Font = T.F(13);
+            try { Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location); }
+            catch { }
+
+            Label title = new Label();
+            title.Text = "NewsyVE";
+            title.Font = T.F(24, FontStyle.Bold);
+            title.ForeColor = T.Tx;
+            title.SetBounds(24, 20, 300, 34);
+            title.BackColor = Color.Transparent;
+
+            Version v = Assembly.GetExecutingAssembly().GetName().Version;
+            Label ver = new Label();
+            ver.Text = "wersja " + v.ToString(3);
+            ver.Font = T.F(11);
+            ver.ForeColor = T.Tx3;
+            ver.TextAlign = ContentAlignment.MiddleRight;
+            ver.SetBounds(300, 32, 134, 18);
+
+            Label sub = new Label();
+            sub.Text = "Pogoda, newsy, kursy i sport na pasku zadań.\n" +
+                       "Jedna aplikacja, bez przeglądarki w tle.";
+            sub.Font = T.F(12);
+            sub.ForeColor = T.Tx2;
+            sub.SetBounds(26, 58, 420, 40);
+
+            Label where = new Label();
+            where.Text = "Katalog: " + Core.Dir;
+            where.Font = T.F(11);
+            where.ForeColor = T.Tx3;
+            where.SetBounds(26, 104, 420, 18);
+
+            cbDesktop.Text = "Skrót na pulpicie";
+            cbDesktop.Checked = true;
+            Style(cbDesktop, 140);
+
+            cbAutostart.Text = "Uruchamiaj razem z Windows";
+            cbAutostart.Checked = Core.IsAutostart();
+            Style(cbAutostart, 168);
+
+            cbRun.Text = "Uruchom po instalacji";
+            cbRun.Checked = true;
+            Style(cbRun, 196);
+
+            btnInstall.Text = Core.Installed() ? "Aktualizuj" : "Zainstaluj";
+            btnInstall.Tint = T.Acc;
+            btnInstall.SetBounds(26, 238, 200, 36);
+            btnInstall.Click += delegate { Install(); };
+
+            btnRemove.Text = "Odinstaluj";
+            btnRemove.Tint = T.Line;
+            btnRemove.ForeColor = T.Tx2;
+            btnRemove.SetBounds(238, 238, 130, 36);
+            btnRemove.Enabled = Core.Installed();
+            btnRemove.Click += delegate { Uninstall(); };
+
+            Flat close = new Flat();
+            close.Text = "Zamknij";
+            close.Tint = T.Line;
+            close.ForeColor = T.Tx2;
+            close.SetBounds(378, 238, 56, 36);
+            close.Click += delegate { Close(); };
+
+            status.Font = T.F(11);
+            status.ForeColor = T.Tx3;
+            status.SetBounds(26, 288, 410, 36);
+
+            Controls.AddRange(new Control[] {
+                title, ver, sub, where, cbDesktop, cbAutostart, cbRun,
+                btnInstall, btnRemove, close, status });
+        }
+
+        void Style(CheckBox c, int y)
+        {
+            c.SetBounds(26, y, 400, 22);
+            c.ForeColor = T.Tx;
+            c.Font = T.F(13);
+            c.FlatStyle = FlatStyle.Flat;
+            c.Cursor = Cursors.Hand;
+        }
+
+        void Say(string text, Color c)
+        {
+            status.ForeColor = c;
+            status.Text = text;
+            status.Refresh();
+        }
+
         void Install()
         {
             try
             {
                 btnInstall.Enabled = false;
-                Say("Zatrzymywanie działającej kopii…", T.Tx3);
-                StopRunning();
-
-                if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
-
-                Say("Rozpakowywanie plików…", T.Tx3);
-                Extract("NewsyVE.exe", Exe);
-                try { Extract("README.md", Path.Combine(Dir, "README.md")); } catch { }
-
-                Say("Tworzenie skrótów…", T.Tx3);
-                Shortcut(Path.Combine(Programs, "NewsyVE.lnk"), Exe, "NewsyVE — pogoda, kursy i newsy");
-
-                string desktop = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "NewsyVE.lnk");
-                if (cbDesktop.Checked) Shortcut(desktop, Exe, "NewsyVE");
-                else if (File.Exists(desktop)) File.Delete(desktop);
-
-                if (cbAutostart.Checked) Shortcut(AutostartLink, Exe, "NewsyVE");
-                else if (File.Exists(AutostartLink)) File.Delete(AutostartLink);
-
+                Core.Install(cbDesktop.Checked, cbAutostart.Checked, cbRun.Checked,
+                    delegate (string s) { Say(s, T.Tx3); });
                 btnRemove.Enabled = true;
                 btnInstall.Text = "Aktualizuj";
                 Say("Gotowe. Aplikacja jest w menu Start jako „NewsyVE”.", T.Ok);
-
-                if (cbRun.Checked)
-                {
-                    try { Process.Start(Exe); } catch { }
-                }
             }
             catch (Exception ex)
             {
@@ -271,14 +435,7 @@ namespace NewsyVESetup
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try
             {
-                StopRunning();
-                foreach (string p in new string[] {
-                    Path.Combine(Programs, "NewsyVE.lnk"), AutostartLink,
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "NewsyVE.lnk") })
-                {
-                    try { if (File.Exists(p)) File.Delete(p); } catch { }
-                }
-                if (Directory.Exists(Dir)) Directory.Delete(Dir, true);
+                Core.Uninstall();
                 btnRemove.Enabled = false;
                 btnInstall.Text = "Zainstaluj";
                 Say("Odinstalowano.", T.Tx2);

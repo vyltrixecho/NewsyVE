@@ -84,6 +84,11 @@ namespace NewsyVE
 
     static class Cfg
     {
+        // jedno zrodlo numeru wersji - AssemblyInfo.cs
+        public static readonly string Version =
+            System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+        public static readonly string Agent = "NewsyVE/" + Version;
+
         public static string Side = "Left";      // Left | Right | Off
         public static int Offset = 8;
         public static int BarPlace = 0;          // ktora miejscowosc na pasku zadan
@@ -93,6 +98,8 @@ namespace NewsyVE
         public static int WxMin = 10;            // co ile minut pogoda
         public static int NewsMin = 15;          // co ile minut newsy
         public static bool Configured;           // czy plik ustawien juz istnial
+        public static bool UpdCheck = true;      // pytaj GitHuba o nowe wydania
+        public static string UpdSeen = "";       // wersja, o ktorej dymek juz byl
 
         // Ktore karty pokazuje zakladka News. Szerokosc okna liczy sie z tego,
         // ile jest wlaczonych - wylaczenie karty naprawde zweza panel,
@@ -143,7 +150,7 @@ namespace NewsyVE
         {
             get
             {
-                return "NewsyVE/2.0 (widget pulpitu" +
+                return Agent + " (widget pulpitu" +
                        (Contact.Length > 0 ? "; " + Contact : "") + ")";
             }
         }
@@ -189,6 +196,8 @@ namespace NewsyVE
                         else if (k == "karta_paliwa") CardFuel = v != "0";
                         else if (k == "skala") int.TryParse(v, out Scale);
                         else if (k == "sport_zakladka") SportTab = v != "0";
+                        else if (k == "aktualizacje") UpdCheck = v != "0";
+                        else if (k == "aktualizacja_pokazana") UpdSeen = v;
                         else if (k == "sport_klub1") Club1 = v;
                         else if (k == "sport_klub2") Club2 = v;
                         else if (k == "sport_zagraniczny")
@@ -251,6 +260,8 @@ namespace NewsyVE
                 b.AppendLine("karta_paliwa=" + (CardFuel ? "1" : "0"));
                 b.AppendLine("skala=" + Scale.ToString(CultureInfo.InvariantCulture));
                 b.AppendLine("sport_zakladka=" + (SportTab ? "1" : "0"));
+                b.AppendLine("aktualizacje=" + (UpdCheck ? "1" : "0"));
+                b.AppendLine("aktualizacja_pokazana=" + UpdSeen);
                 b.AppendLine("sport_klub1=" + Club1);
                 b.AppendLine("sport_klub2=" + Club2);
                 b.AppendLine("sport_zagraniczny=" + (AbroadId.Length > 0 ? AbroadId + "|" + AbroadName.Replace('|', ' ') : ""));

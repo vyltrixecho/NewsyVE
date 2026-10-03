@@ -39,9 +39,27 @@ kursami, odjazdami komunikacji i piłką nożną.
 
 ## Instalacja
 
-Pobierz **`NewsyVE-Setup.exe`** z zakładki
-[Releases](../../releases) i uruchom — jeden plik, bez zależności i bez uprawnień
-administratora. Aplikacja siedzi w zasobach instalatora.
+Jedna komenda w terminalu Windows:
+
+```powershell
+irm https://raw.githubusercontent.com/vyltrixecho/NewsyVE/main/install.ps1 | iex
+```
+
+Skrypt pyta GitHuba o najnowsze wydanie, pobiera instalator, **sprawdza jego sumę
+kontrolną SHA-256** i uruchamia instalację.
+
+Bez okna instalatora (potok nie przekazuje argumentów, więc przez blok skryptu):
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/vyltrixecho/NewsyVE/main/install.ps1))) -Silent
+```
+
+Skrypt przyjmuje też `-DownloadOnly` (tylko pobiera i weryfikuje) oraz
+`-Version v2.0.0` (konkretne wydanie zamiast najnowszego).
+
+Wolisz kliknąć — **[pobierz `NewsyVE-Setup.exe`](https://github.com/vyltrixecho/NewsyVE/releases/latest/download/NewsyVE-Setup.exe)**
+i uruchom. Jeden plik, bez zależności i bez uprawnień administratora — aplikacja
+siedzi w zasobach instalatora. Wszystkie wersje są w zakładce [Releases](../../releases).
 
 | opcja instalatora | domyślnie |
 |---|---|
@@ -52,7 +70,25 @@ administratora. Aplikacja siedzi w zasobach instalatora.
 Instaluje do `%LOCALAPPDATA%\NewsyVE` i tworzy wpis w menu Start. Ponowne
 uruchomienie instalatora na zainstalowanej kopii pokazuje **Aktualizuj**
 (podmienia plik, zachowuje ustawienia) i **Odinstaluj** (usuwa aplikację,
-skróty i ustawienia). Działającą kopię instalator zamyka sam.
+skróty i ustawienia). Działającą kopię instalator zamyka sam. NewsyVE widać też
+w *Ustawienia → Aplikacje → Zainstalowane aplikacje* i stamtąd można je odinstalować
+jak każdy inny program.
+
+| przełącznik instalatora | działanie |
+|---|---|
+| `/silent` | instalacja bez okna: skrót na pulpicie, autostart bez zmian, start po instalacji |
+| `/silent /norun` | to samo, bez uruchamiania aplikacji |
+| `/uninstall` | odinstalowanie (z pytaniem) |
+| `/uninstall /silent` | odinstalowanie bez pytania |
+
+### Aktualizacje
+
+Raz na dobę aplikacja pyta GitHuba o najnowsze wydanie. Gdy jest nowsze, w menu
+pod prawym przyciskiem pojawia się **Nowa wersja X — pobierz…**, a dymek
+w zasobniku pokazuje się raz dla danej wersji. Nic nie jest pobierane ani
+instalowane samo — aktualizacja to po prostu uruchomienie nowego instalatora
+(albo ponownie komendy `irm … | iex`). Sprawdzanie można wyłączyć w ustawieniach
+(strona *Dane*), a w menu jest też **Sprawdź aktualizacje** na żądanie.
 
 > Plik nie jest podpisany certyfikatem, więc Windows SmartScreen może przy
 > pierwszym uruchomieniu pokazać ostrzeżenie — *Więcej informacji → Uruchom mimo to*.
@@ -63,7 +99,11 @@ skróty i ustawienia). Działającą kopię instalator zamyka sam.
 ```powershell
 .\Build-Setup.ps1      # kompiluje aplikację i pakuje ją w instalator
 .\Build-NewsyVE.ps1    # sama aplikacja, bez instalatora
+.\Build-Release.ps1    # instalator + suma SHA-256 w dist\ (pliki do GitHub Releases)
 ```
+
+Numer wersji jest w jednym miejscu — `src/AssemblyInfo.cs`; instalator i nazwa
+wydania (`vX.Y.Z`) biorą go stamtąd.
 
 Oba używają `csc.exe` z .NET Framework 4.8, który jest w każdym Windows 10/11 —
 nie trzeba instalować Visual Studio ani .NET SDK.
@@ -111,7 +151,7 @@ Prawy przycisk na pasku → **Ustawienia…**
 | **Pasek zadań** | strona paska albo tylko zasobnik, odstęp od krawędzi, siła napisu (1–5), autostart |
 | **Karty** | które kolumny pokazuje zakładka News, rozmiar pisma w newsach (90–140 %) |
 | **Sport** | włączenie zakładki, dwa kluby z Ekstraklasy, klub zagraniczny (wyszukiwarka TheSportsDB) |
-| **Dane** | częstotliwość odświeżania, opcjonalny klucz AccuWeather, czyszczenie pamięci podręcznej |
+| **Dane** | częstotliwość odświeżania, opcjonalny klucz AccuWeather, czyszczenie pamięci podręcznej, sprawdzanie nowych wersji |
 
 Przy pierwszym uruchomieniu aplikacja sama otwiera okno miejscowości
 z podpowiedzią z geolokalizacji po IP.
@@ -320,6 +360,7 @@ tylko przy otwartym panelu.
 | puchary, reprezentacja | API UEFA | 30 min, w trakcie meczu 2 min |
 | wyszukiwanie miejscowości | Open-Meteo Geocoding | na żądanie |
 | geolokalizacja po IP | ip-api.com, zapasowo ipwho.is | na żądanie |
+| nowe wersje NewsyVE | GitHub Releases | raz na dobę (można wyłączyć) |
 
 Wszystkie dane, nagłówki, zdjęcia i godła należą do ich właścicieli. NewsyVE
 jedynie je wyświetla i linkuje do źródła — to niekomercyjny projekt, niezwiązany
@@ -335,6 +376,8 @@ więc zmiana w serwisie może chwilowo wyłączyć daną kartę.
 | `promo/` | grafiki VyltrixEcho osadzane w oknie ustawień |
 | `docs/screenshots/` | zrzuty ekranu do tego README |
 | `Build-NewsyVE.ps1`, `Build-Setup.ps1` | kompilacja aplikacji i instalatora |
+| `Build-Release.ps1` | pliki wydania: `dist\NewsyVE-Setup.exe` i `.sha256` |
+| `install.ps1` | instalacja jedną komendą z najnowszego wydania na GitHubie |
 | `Install-NewsyVE.ps1`, `Uninstall-NewsyVE.ps1` | instalacja prosto ze źródeł |
 | `Make-Icon.ps1`, `NewsyVE.ico` | ikona pliku wykonywalnego |
 
@@ -346,6 +389,8 @@ Obok zainstalowanej aplikacji powstają w trakcie działania:
 | `markets.cache`, `stacje.cache`, `ogimage.cache` | pamięć podręczna kursów, stacji IMGW i miniatur |
 | `herby/` | godła klubów i miniatury newsów (starsze niż tydzień kasują się same) |
 | `newsyve-error.log` | tylko przy błędach |
+| `newsyve-zycie.log` | starty i zamknięcia aplikacji — do diagnozy, gdy wskaźnik znika |
+| `NewsyVE-Setup.exe` | kopia instalatora, z której korzysta odinstalowanie w Windows |
 
 ### Struktura źródeł
 
@@ -365,6 +410,7 @@ Obok zainstalowanej aplikacji powstają w trakcie działania:
 | `Sport.cs`, `Cups.cs` | Ekstraklasa, TheSportsDB, API UEFA |
 | `Art.cs`, `Theme.cs`, `Cards.cs` | ikony pogody, kolory, wspólne rysowanie kart |
 | `Config.cs`, `Startup.cs`, `Native.cs` | ustawienia, autostart, WinAPI |
+| `Updates.cs` | sprawdzanie nowych wydań na GitHubie |
 | `VyltrixPromo.cs` | baner VyltrixEcho i przycisk „Postaw kawę” w ustawieniach |
 
 ## Dlaczego nie „prawdziwy” widget Windows

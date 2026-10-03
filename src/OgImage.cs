@@ -98,7 +98,7 @@ namespace NewsyVE
             try
             {
                 HttpWebRequest rq = (HttpWebRequest)WebRequest.Create(url);
-                rq.UserAgent = "NewsyVE/2.0";
+                rq.UserAgent = Cfg.Agent;
                 rq.Timeout = 5000;
                 rq.ReadWriteTimeout = 5000;
                 rq.AllowAutoRedirect = true;
