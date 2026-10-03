@@ -120,6 +120,7 @@ $proces = if ($argumenty.Count -gt 0) {
 } else {
     Start-Process -FilePath $plik -PassThru
 }
+$null = $proces.Handle   # trzyma uchwyt - bez tego ExitCode po WaitForExit bywa pusty
 $proces.WaitForExit()
 
 if ($proces.ExitCode -ne 0) {
